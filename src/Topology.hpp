@@ -326,6 +326,94 @@ public:
     TODO this part
     */
     map<string,void*> attrib;
+
+#ifdef PAPI_METRICS
+    /**
+     * PAPI_METRICS Support in Sys-Sage
+     * Concept:
+     * PAPI can be used to observe various characterestics of
+     * a complex computing environment. Sys-Sage can be used to
+     * describe the topology and data paths of such systems.
+     * This extension allows binding PAPI Metrics to
+     * arbitrary components of a sys-sage topology in order to use
+     * it for system tuning and application profiling.
+     * 
+     * The flexible 'attrib' extension of Components are used
+     * to keep track of associated PAPI event counters. It can be used
+     * to store event counters received from PAPI by calling functions
+     * PAPI_stop, PAPI_read or PAPI_accum. In basic mode, only the 
+     * counter readings are stored together with a timestamp.
+     * It also allows exporting the Metrics in XML format, together
+     * with the PAPI Events. IN this case additional method calls
+     * are required to set up the event information.
+     */
+
+    /**
+     * @brief Initialize storage for PAPI measurement.
+     * It initializes a counter measurement for each events in the set with
+     * a start timestamps.
+     * Note: this call is optional, but must be called if XML output
+     * is required.
+     * 
+     * @param eventSet a PAPI event set
+     * @return int PAPI_OK on success, error code otherwise
+     */
+    int PAPI_initializeStorage(int eventSet);
+
+    /// @brief returns true if the component has started PAPI measurement
+    bool PAPI_storageInitialized();
+
+    /**
+     * @brief Stops a PAPI event set and stores the counters
+     * in component attrib
+     * 
+     * @param eventSet a started PAPI event set
+     * @return int PAPI_OK on success, error code otherwise
+     */
+    int PAPI_stop(int eventSet);
+
+    /**
+     * @brief Reads and stores the counters of a PAPI event set
+     * in component attrib
+     * 
+     * @param eventSet a started PAPI event set
+     * @return int PAPI_OK on success, error code otherwise
+     */
+    int PAPI_read(int eventSet);
+
+    /**
+     * @brief Reads and stores the counters of a PAPI event set
+     * in component attrib. The counters will be reset.
+     * 
+     * @param eventSet a started PAPI event set
+     * @return int PAPI_OK on success, error code otherwise
+     */
+    int PAPI_accum(int eventSet);
+
+    /**
+     * @brief Appends the last PAPI counters to the provided
+     * counters vector. One of the PAPI_stop, PAPI_read or PAPI_accum 
+     * methods must be called before this method. It will return the 
+     * counters fetched with the last method call.
+     * 
+     * @param counters a vector to hold the last counter values 
+     * @return int PAPI_OK on success, PAPI_EINVAL if no counter
+     * storing methods has been executed before.
+     */
+    int PAPI_lastCounters(std::vector<long long>& counters);
+
+    std::vector<std::vector<long long>> PAPI_getCounters();
+
+    /// @brief Metrics attribute handler
+    static int PAPI_attribHandler(std::string key, void* value, std::string* ret_value_str);
+
+    /// @brief Metrics attribute handler for XML export
+    static int PAPI_attribXmlHandler(std::string key, void* value, xmlNodePtr n);
+
+    /// @brief Retrieves the vector of PAPI event names from the environment variable SYS_SAGE_METRICS
+    static std::vector<std::string> PAPI_EventsFromEnvironment();
+#endif
+
 protected:
 
     int id; /**< Numeric ID of the component. There is no requirement for uniqueness of the ID, however it is advised to have unique IDs at least in the realm of parent's children. Some tree search functions, which take the id as a search parameter search for first match, so the user is responsible to manage uniqueness in the realm of the search subtree (or should be aware of the consequences of not doing so). Component's ID is set by the constructor, and is retrieved via int GetId(); */

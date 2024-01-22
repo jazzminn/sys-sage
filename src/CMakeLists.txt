@@ -28,7 +28,16 @@ set(HEADERS
     parsers/cccbench.cpp
     )
 
+if(PAPI_METRICS)
+	list(APPEND SOURCES papi/Logging.cpp papi/SystemInfo.cpp papi/ComponentPapi.cpp)
+	list(APPEND HEADERS papi/Logging.hpp papi/SystemInfo.hpp)
+endif()
+
 add_library(sys-sage SHARED ${SOURCES} ${HEADERS})
+
+if(PAPI_METRICS)
+	target_link_libraries(sys-sage -lpapi)
+endif()
 
 target_include_directories(sys-sage PUBLIC  
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>  
