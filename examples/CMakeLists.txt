@@ -18,11 +18,17 @@ add_executable(use_custom_parser custom_parser_musa/use_custom_parser.cpp custom
 add_executable(cccbenchplushwloc cccbenchplushwloc.cpp)
 
 if(PAPI_METRICS)
-add_executable(papi-metrics papi-metrics.cpp)
-target_link_libraries(papi-metrics -lpapi)
+    add_executable(papi-metrics papi-metrics.cpp)
+    target_link_libraries(papi-metrics -lpapi)
 
-add_executable(papi-metrics-runner papi-metrics-runner.cpp)
-target_link_libraries(papi-metrics-runner -lpapi)
+    add_executable(papi-metrics-runner papi-metrics-runner.cpp)
+    target_link_libraries(papi-metrics-runner -lpapi)
+
+    add_executable(green_score green_score.cpp)
+    target_link_libraries(green_score -lpapi)    
+
+    add_executable(green_score_old green_score_old.cpp)
+    target_link_libraries(green_score_old -lpapi)    
 endif()
 
 install(TARGETS basic_usage gpu-topo-parser custom_attributes larger_topo sys-sage-benchmarking use_custom_parser cccbenchplushwloc DESTINATION bin/examples)

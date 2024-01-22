@@ -9,7 +9,7 @@ static const char* attribMetrics = "papiMetrics";
 
 using namespace papi;
 
-int EventSetManager::registerEvent(Component* component, const std::string& eventName, int eventId, int cpuId) {
+int EventSetManager::registerEvent(Component* component, const std::string& eventName, int eventId, int cpuId, int tid) {
     int rv;
     int componentType = component->GetComponentType();
     int cpu = -1;
@@ -35,7 +35,8 @@ int EventSetManager::registerEvent(Component* component, const std::string& even
     }
     int papiComponent = rv;
 
-    EventSetId id{papiComponent, cpu};
+    EventSetId id{(short)papiComponent, (short)cpu, tid};
+
     if ( eventSets.count(id.id) == 0 ) {
         // no eventset exists, creating
         int papiEventSet = PAPI_NULL;
@@ -51,7 +52,13 @@ int EventSetManager::registerEvent(Component* component, const std::string& even
             return rv;
         }
 
-        if ( cpu > -1 ) {
+        if ( tid > 0 ) {
+            rv = PAPI_attach(papiEventSet, tid);
+            if ( rv != PAPI_OK ) {
+                logprintf("Failed to attach tid %d to new eventset, error: %d", tid, rv);
+                return rv;
+            }
+        } else if ( cpu > -1 ) {
             PAPI_option_t opts;
             opts.cpu.eventset = papiEventSet;
             opts.cpu.cpu_num = cpu;
@@ -66,8 +73,8 @@ int EventSetManager::registerEvent(Component* component, const std::string& even
         //FIXME set additional event set options here ... like multiplex
         //TODO rv = PAPI_set_multiplex( papiEventSet );
 
-        eventSets[id.id] = EventSet{papiEventSet, papiComponent, cpu};
-        logprintf("Created new event set for component %d, cpu %d: id: %ld", papiComponent, cpu, id.id);
+        eventSets[id.id] = EventSet{papiEventSet, papiComponent, cpu, tid};
+        logprintf("Created new event set for component %d, cpu %d: tid: %d, id: %ld", papiComponent, cpu, tid, id.id);
     }
 
 
@@ -132,6 +139,19 @@ int EventSetManager::saveAll() {
         }
     }
     logprintf("Saved %ld event sets", eventSets.size());
+    return STATUS_OK;
+}
+
+int EventSetManager::populateCountersForThread(int tid, std::vector<long long>& counters) {
+    EventSetId id{0, -1, tid};
+    if ( eventSets.count(id.id) == 0 ) {
+        return MEASUREMENT_ERROR_TID_NOT_FOUND;
+    }
+
+    // populate counters with the last readings
+    for(auto value: eventSets[id.id].counters) {
+        counters.push_back(value);
+    }
     return STATUS_OK;
 }
 

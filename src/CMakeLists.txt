@@ -29,8 +29,8 @@ set(HEADERS
     )
 
 if(PAPI_METRICS)
-	list(APPEND SOURCES Measurement.cpp papi/Logging.cpp papi/EventSetManager.cpp papi/Region.cpp papi/MetricsFactory.cpp)
-	list(APPEND HEADERS Measurement.hpp papi/Logging.hpp papi/EventSetManager.hpp papi/Region.hpp papi/MetricsFactory.hpp)
+	list(APPEND SOURCES Measurement.cpp papi/Logging.cpp papi/EventSetManager.cpp papi/Region.cpp papi/MetricsFactory.cpp papi/SystemInfo.cpp)
+	list(APPEND HEADERS Measurement.hpp papi/Logging.hpp papi/EventSetManager.hpp papi/Region.hpp papi/MetricsFactory.hpp papi/SystemInfo.hpp)
 endif()
 
 add_library(sys-sage SHARED ${SOURCES} ${HEADERS})

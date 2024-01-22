@@ -4,11 +4,10 @@
 #include "papi/Region.hpp"
 #include "papi/MetricsFactory.hpp"
 #include "papi/Logging.hpp"
+#include "papi/SystemInfo.hpp"
 
 #include <map>
 #include <regex>
-
-#include <sched.h>
 
 using namespace papi;
 
@@ -88,13 +87,40 @@ int Measurement::init(const std::string& region, Configuration* configuration, C
     if ( !factory.create(region, configuration, component) ) {
         return MEASUREMENT_ERROR_CANNOT_CREATE;
     }
-    int cpu = sched_getcpu();
-    if ( cpu == -1 ) {
-        logprintf("Failed to determine current CPU, initializing without current CPU");
-        return factory.regions[region].init();
+    auto mode = configuration->mode;
+    if ( configuration->threads.size() > 0 ) {
+        logprintf("Thread TIDs provided, set mode to threadCpu.");
+        mode = Measurement::Configuration::Mode::threadCpu;
     }
-    logprintf("Initializing region %s on CPU %d", region.c_str(), cpu);
-    return factory.regions[region].init(cpu);
+
+    int cpu = -1;
+    switch(mode) {
+        case Measurement::Configuration::Mode::anyCpu:
+            cpu = SystemInfo::getThreadCpu();
+            if ( cpu != -1 ) {
+                logprintf("Initializing region %s on CPU %d", region.c_str(), cpu);
+                return factory.regions[region].init(cpu);
+            } else {
+                logprintf("Failed to determine current CPU, initializing without current CPU");
+            }
+            break;
+        case Measurement::Configuration::Mode::threadCpu:
+            for(int tid: configuration->threads) {
+                cpu = SystemInfo::getThreadCpu(tid);
+                int rv = factory.regions[region].init(cpu, tid);
+                if ( rv != STATUS_OK ) return rv;
+            }
+            return STATUS_OK;
+            break;
+        case Measurement::Configuration::Mode::allCpu:
+            return factory.regions[region].init();
+            break;
+        case Measurement::Configuration::Mode::system:
+            factory.regions[region].configuration->systemGranularity = true;
+            return factory.regions[region].init();
+            break;
+    }
+    return MEASUREMENT_ERROR_CANNOT_CREATE;
 }
 int Measurement::deinit(const std::string &region)
 {
@@ -162,6 +188,12 @@ int Measurement::save(const std::string& region) {
     return factory.regions[region].save();
 }
 
+int Measurement::counters(const std::string& region, int tid, std::vector<long long>& counters) {
+    if ( !factory.has(region) ) {
+        return MEASUREMENT_ERROR_REGION_NOT_EXIST;
+    }
+    return factory.regions[region].counters(tid, counters);
+}
 
 //
 // Configuration

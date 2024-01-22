@@ -18,7 +18,7 @@ struct Region {
 
     EventSetManager eventSetManager;
 
-    int init(int cpuId = -1);
+    int init(int cpuId = -1, int tid = 0);
 
     bool component_has_hwthread(Component* component, int hwThreadId);
 
@@ -27,6 +27,8 @@ struct Region {
     int read();
     int stop();
     int save();
+
+    int counters(int tid, std::vector<long long>& counters);
 };
 
 }

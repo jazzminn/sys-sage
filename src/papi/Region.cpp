@@ -3,7 +3,7 @@
 
 using namespace papi;
 
-int Region::init(int cpuId) {
+int Region::init(int cpuId, int tid) {
     int rv = STATUS_OK;
     int eventCount = 0;
     // validating configuration
@@ -46,7 +46,7 @@ int Region::init(int cpuId) {
                     // implicit binding to current CPU/thread
                     if ( !component_has_hwthread(component, cpuId) ) continue;
                 }
-                rv = eventSetManager.registerEvent(component, event.name, eventId, cpuId);
+                rv = eventSetManager.registerEvent(component, event.name, eventId, cpuId, tid);
                 if ( rv != STATUS_OK ) {
                     logprintf("Failed to register event %s for component: %d", event.name.c_str(), component->GetName(), rv);
                     return rv;
@@ -76,6 +76,10 @@ int Region::init(int cpuId) {
 }
 
 bool Region::component_has_hwthread(Component* component, int hwThreadId) {
+    Thread * t = (Thread*)component->FindSubcomponentById(hwThreadId, SYS_SAGE_COMPONENT_THREAD);
+    return t != nullptr;
+
+    /* previous algorithm:
     std::vector<Component*> coreThreads;
     component->FindAllSubcomponentsByType(&coreThreads, SYS_SAGE_COMPONENT_THREAD);
     for(auto hwThread: coreThreads) {
@@ -83,6 +87,7 @@ bool Region::component_has_hwthread(Component* component, int hwThreadId) {
         if ( hwThreadId == coreThread->GetId() ) return true;
     }
     return false;
+    */
 }
 
 int Region::deinit() {
@@ -101,4 +106,8 @@ int Region::stop() {
 }
 int Region::save() {
     return eventSetManager.saveAll();
+}
+
+int Region::counters(int tid, std::vector<long long>& counters) {
+    return eventSetManager.populateCountersForThread(tid, counters);
 }

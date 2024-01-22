@@ -1,14 +1,13 @@
 #ifndef MEASUREMENT
 #define MEASUREMENT
 
-#include <map>
-
 #include "defines.hpp"
 #include "Topology.hpp"
 
 #ifdef PAPI_METRICS
 
 #include <string>
+#include <vector>
 
 #define STATUS_OK 0
 #define MEASUREMENT_ERROR -1000
@@ -20,6 +19,7 @@
 #define MEASUREMENT_ERROR_INVALID_EVENTNAME -1006
 #define MEASUREMENT_ERROR_INVALID_TOPOLOGY -1007
 #define MEASUREMENT_ERROR_INVALID_CONFIG -1008
+#define MEASUREMENT_ERROR_TID_NOT_FOUND -1009
 
 /// @brief Top level interface for performance measurement
 class Measurement {
@@ -53,8 +53,9 @@ class Measurement {
     struct Configuration {
         enum class Mode {
             anyCpu, // current process current cpu
-            allCpu, // current process all cpu
-            system // all process all cpu (granularity system)
+            threadCpu, // attach to the list of TIDs and use thread affinity
+            allCpu, // current process all cpu of the topology
+            system // all process all cpu of the topology (granularity system)
         };
         struct Event {
             std::string name;
@@ -73,7 +74,14 @@ class Measurement {
         Configuration(const std::vector<std::string>& eventList);
         bool add(const std::string& event);
         bool add(const std::string& event, const std::string& option);
+        
         std::vector<Event> events;
+        std::vector<int> threads;
+
+        Mode mode{Mode::anyCpu};
+        
+        bool multiplex{false};
+        bool systemGranularity{false};
     };
 
     /// @brief Initialize the measurement, allocate internal measurement object
@@ -108,6 +116,7 @@ class Measurement {
     /// @return status code
     static int save(const std::string& region);
 
+    static int counters(const std::string& region, int tid, std::vector<long long>& counters);
 
     // convenience methods for code instrumentation (~PAPI High Level interface)
 
