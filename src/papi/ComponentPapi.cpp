@@ -114,9 +114,23 @@ int Component::PAPI_initializeStorage(int eventSet) {
         }
         storage->addEvent(name);
     }
-    
     storage->beginMeasurement();
     return PAPI_OK;
+}
+
+int Component::PAPI_destroyStorage() {
+    if ( attrib.count(attribMetrics) > 0 ) {
+        MetricsStorage* storage = (MetricsStorage*)attrib[attribMetrics];
+        delete storage;
+        attrib.erase(attribMetrics);
+    }
+    return PAPI_OK;
+}
+
+int Component::PAPI_start(int eventSet) {
+    //MetricsStorage* storage = getMetricsStorage(this);
+    //storage->beginMeasurement();
+    return ::PAPI_start(eventSet);
 }
 
 int Component::PAPI_stop(int eventSet) {

@@ -360,8 +360,12 @@ public:
      */
     int PAPI_initializeStorage(int eventSet);
 
+    int PAPI_destroyStorage();
+
     /// @brief returns true if the component has started PAPI measurement
     bool PAPI_storageInitialized();
+
+    int PAPI_start(int eventSet);
 
     /**
      * @brief Stops a PAPI event set and stores the counters

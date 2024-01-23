@@ -86,7 +86,7 @@ void run_sampling(pid_t child_pid, Node* n, const std::vector<std::string>& even
 
         // start sampling
         for(auto& hwtes: hwThreadEventSets) {
-            rv = PAPI_start(hwtes.eventSet);
+            rv = hwtes.threadComponent->PAPI_start(hwtes.eventSet);
             if ( rv != PAPI_OK ) {
                 std::cerr << "Failed to start event set: " << rv << std::endl;
                 kill(child_pid, SIGKILL);

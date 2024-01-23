@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    rv = PAPI_start(eventSet);
+    rv = hwThreadComponent->PAPI_start(eventSet);
     if ( rv != PAPI_OK ) {
         std::cerr << "Failed to start eventset: " << rv << std::endl;
         exit(EXIT_FAILURE);

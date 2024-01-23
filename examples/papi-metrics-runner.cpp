@@ -89,7 +89,7 @@ void measure(pid_t child_pid, Node* n, const std::vector<std::string>& events) {
             hwThreadEventSets.emplace_back(hwThreadComponent, eventSet);
             tidToHwEventSet[tid] = hwThreadComponent;
 
-            rv = PAPI_start(eventSet);
+            rv = hwThreadComponent->PAPI_start(eventSet);
             if ( rv != PAPI_OK ) {
                 std::cerr << "Failed to start event set: " << rv << std::endl;
                 kill(child_pid, SIGKILL);
