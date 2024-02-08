@@ -38,6 +38,8 @@ struct GreenScore : public SYSSAGE_PAPI_Visitor {
         int hwThread;
         double frequency;
         std::vector<long long> papi_counters;
+        Entry(uint64_t t, int h, double f, std::vector<long long> c)
+            : time{t}, hwThread{h}, frequency{f}, papi_counters{c} {}
 
         void Print()
         {
@@ -88,48 +90,6 @@ struct GreenScore : public SYSSAGE_PAPI_Visitor {
 };
 
 
-
-struct ProcessInfo {
-    struct Thread {
-        int tid;
-        int core;
-    };
-
-    pid_t pid;
-    ProcessInfo(pid_t p) : pid(p) {}
-
-    static std::string exec(const char* cmd) {
-        std::array<char, 128> buffer;
-        std::string result;
-        std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
-        if (!pipe) {
-            throw std::runtime_error("popen() failed!");
-        }
-        while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-            result += buffer.data();
-        }
-        return result;
-    }
-
-    std::vector<Thread> get_child_threads() {
-        std::vector<Thread> threads;
-
-        string cmd_get_threadId = "ps -o tid,psr -p " + std::to_string(pid) + " -T | tail -n +2";
-        string str_coreId = exec(cmd_get_threadId.c_str());
-
-        std::stringstream ss(str_coreId);
-        std::string line;
-        while (std::getline(ss, line)) {
-            std::stringstream ss_line(line);
-            int tid, core;
-            ss_line >> tid;
-            ss_line >> core;
-            threads.emplace_back(tid, core);
-        }
-        return threads;
-    }
-};
-
 void usage(char* argv0) {
     std::cerr << "usage: " << argv0 << " <hwloc xml path> <program_to_measure> [program params]" << std::endl;
 }
@@ -177,7 +137,6 @@ int main(int argc, char *argv[])
         int status;
         int rv;
         GreenScore greenScore;
-        //ProcessInfo processInfo{child};
 
         //waiting for the child process to be started...
         wait(&status);
@@ -199,7 +158,6 @@ int main(int argc, char *argv[])
         // Wait until process exits
         do {
             n->RefreshCpuCoreFrequency();
-            //auto threads = processInfo.get_child_threads();
             auto tids = papi::SystemInfo::listThreads(child);
             auto num_threads = tids.size();
             if ( num_threads == 0 ) {
