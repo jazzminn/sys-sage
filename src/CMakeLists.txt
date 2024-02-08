@@ -30,15 +30,10 @@ set(HEADERS
 
 if(PAPI_METRICS)
 	list(APPEND SOURCES papi/Logging.cpp papi/SystemInfo.cpp papi/Metrics.cpp)
-	list(APPEND HEADERS Metrics.hpp papi/Logging.hpp papi/SystemInfo.hpp)
+	list(APPEND HEADERS papi/Metrics.hpp papi/Logging.hpp papi/SystemInfo.hpp)
 endif()
 
 add_library(sys-sage SHARED ${SOURCES} ${HEADERS})
-
-
-if(PAPI_METRICS)
-	target_link_libraries(sys-sage -lpapi)
-endif()
 
 target_include_directories(sys-sage PUBLIC  
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>  

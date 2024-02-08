@@ -1,30 +1,54 @@
 #include "SystemInfo.hpp"
 
 #include <sched.h>
-#include <string>
 #include <filesystem>
 #include <sstream>
+#include <fstream>
+
+#include <iostream>
 
 using namespace papi;
 
-static inline int get_cpu(const cpu_set_t& mask) {
-    for(int i=0; i<CPU_SETSIZE; ++i) {
-        if ( CPU_ISSET(i, &mask) ) return i;
+static constexpr auto FieldTaskCpu = 39;
+static constexpr auto MaxStatFileSize = 1024; // ~ 255 + (FieldTaskCpu-2) * 22;
+
+// gets the nth field as integer from a /proc/#/stat style string
+// the field counting starts at 1!
+int SystemInfo::getField(const std::string& fields, int field) {
+    int value = -1;
+    auto pos = fields.find_last_of(')');
+    if ( pos != std::string::npos ) {
+        int i;
+        for(i=2, pos = pos + 1; 
+            i<field-1 && pos != std::string::npos; 
+            i++, pos = fields.find_first_of(' ', pos + 1) ) {}
+        if ( i == field-1 && pos != std::string::npos ) {
+            pos++;
+            const auto pos2 = fields.find_first_of(' ', pos);
+            if (pos2 != std::string::npos) {
+                auto field = fields.substr(pos, pos2-pos);
+                std::stringstream ss{field};
+                ss >> value;
+            }
+        }
     }
-    return -1;
+    return value;
 }
 
-int SystemInfo::getThreadCpu(int tid)
-{
+int SystemInfo::getThreadCpu(int tid) {
     if ( tid == 0 ) return sched_getcpu();
-
-    cpu_set_t mask;
-    CPU_ZERO(&mask);
-    int rv = sched_getaffinity(tid, sizeof(mask), &mask);
-    if ( rv != 0 ) {
-        return -1;
+    
+    int cpu = -1;
+    std::string path = "/proc/" + std::to_string(tid) + "/stat";
+    std::ifstream statFile{path, std::ios::in | std::ios::binary};
+    if ( statFile.is_open() ) {
+        std::string stat(MaxStatFileSize, '\0');
+        statFile.read(stat.data(), MaxStatFileSize);
+        stat.resize(statFile.gcount());
+        cpu = getField(stat, FieldTaskCpu);
+        statFile.close();
     }
-    return get_cpu(mask);
+    return cpu;
 }
 
 std::vector<int> papi::SystemInfo::listThreads(int pid) {

@@ -76,6 +76,12 @@ if(DATA_SOURCES)
     set(DS_NUMA ON)
 endif()
 
+if(PAPI_METRICS)
+  find_package(PAPI REQUIRED)
+  include_directories(${PAPI_INCLUDE_DIRS})
+  link_libraries(${PAPI_LIBRARIES})
+endif()
+
 # Top-level build just includes subdirectories.
 add_subdirectory(src)
 add_subdirectory(examples)

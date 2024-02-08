@@ -17,6 +17,26 @@ add_executable(sys-sage-benchmarking sys-sage-benchmarking.cpp)
 add_executable(use_custom_parser custom_parser_musa/use_custom_parser.cpp custom_parser_musa/musa_parser.cpp custom_parser_musa/musa_parser.hpp)
 add_executable(cccbenchplushwloc cccbenchplushwloc.cpp)
 
+if(PAPI_METRICS)
+    add_executable(papi-metrics-storage-only papi-metrics-storage-only.cpp)
+
+    add_executable(papi-metrics-storage-only-cpu papi-metrics-storage-only-cpu.cpp)
+
+    add_executable(papi-metrics-storage-only-tid papi-metrics-storage-only-tid.cpp)
+
+    add_executable(papi-metrics-topology papi-metrics-topology.cpp)
+
+    add_executable(papi-metrics-runner papi-metrics-runner.cpp)
+
+    add_executable(papi-metrics-sampler papi-metrics-sampler.cpp)
+
+    add_executable(papi-metrics-benchmarking papi-metrics-benchmarking.cpp)
+    
+    if(CPUINFO)
+        add_executable(papi-metrics-green-score papi-metrics-green-score.cpp)
+    endif()
+endif()
+
 install(TARGETS basic_usage gpu-topo-parser custom_attributes larger_topo sys-sage-benchmarking use_custom_parser cccbenchplushwloc DESTINATION bin/examples)
 install(DIRECTORY example_data DESTINATION bin/examples)
 
