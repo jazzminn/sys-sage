@@ -77,6 +77,13 @@ struct EventSetInfo {
             && core == other.core;
     }
 
+    bool operator!=(const EventSetInfo& other) const {
+		return eventSet != other.eventSet
+            || events != other.events
+            || tid != other.tid
+            || core != other.core;
+    }
+
 	bool operator()(const EventSetInfo& a, const EventSetInfo& b) const {
         return a == b;
 	}
