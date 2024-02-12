@@ -99,7 +99,7 @@ void measure(pid_t child_pid, Topology* topo, const std::vector<std::string>& ev
 
     for(int eventSet: eventSets) {
         SYSSAGE_PAPI_print(eventSet);
-        SYSSAGE_PAPI_destroy(eventSet);
+        SYSSAGE_PAPI_destroy_eventset(&eventSet);
     }
 }
 

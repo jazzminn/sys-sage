@@ -27,8 +27,8 @@ int SystemInfo::getField(const std::string& fields, int field) {
             const auto pos2 = fields.find_first_of(' ', pos);
             if (pos2 != std::string::npos) {
                 auto field = fields.substr(pos, pos2-pos);
-                std::stringstream ss{field};
-                ss >> value;
+                std::stringstream sstream{field};
+                sstream >> value;
             }
         }
     }

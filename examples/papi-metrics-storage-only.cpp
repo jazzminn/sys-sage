@@ -117,7 +117,7 @@ int main(int argc, char *argv[])
 
     SYSSAGE_PAPI_print(eventSet);
 
-    SYSSAGE_PAPI_destroy(eventSet);
+    SYSSAGE_PAPI_destroy_eventset(&eventSet);
 
     return EXIT_SUCCESS;
 }

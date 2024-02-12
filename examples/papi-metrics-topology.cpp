@@ -153,7 +153,7 @@ int main(int argc, char *argv[])
     SYSSAGE_PAPI_freeze(topo);
 
     SYSSAGE_PAPI_export_xml(topo, output_name2);
-    SYSSAGE_PAPI_destroy(eventSet);
+    SYSSAGE_PAPI_destroy_eventset(&eventSet);
     
     SYSSAGE_PAPI_cleanup(topo);
 

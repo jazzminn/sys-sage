@@ -12,44 +12,6 @@
 
 #define SYSSAGE_PAPI_ECHANGED -100  /**< EventSet exists but parameters have changed */
 
-/**
- * PAPI_METRICS Add-On in Sys-Sage
- * Concept:
- * PAPI can be used to observe various characterestics of
- * a complex computing environment. Sys-Sage can be used to
- * describe the topology and data paths of such systems.
- * This add-on allows binding PAPI Metrics to
- * arbitrary components of a sys-sage topology in order to use
- * it for system tuning and application profiling.
- * 
- * The flexible 'attrib' extension of Components are used
- * to keep track of associated PAPI event counters. It can be used
- * to store event counters received from PAPI by calling functions
- * PAPI_stop, PAPI_read or PAPI_accum.
- * The counter readings are stored together with a relative timestamp
- * and the number of the actual core, where the eventset is executed.
- * If the core is irrelevant for the eventset, like uncore events,
- * then the core number will be ignored (-1).
- * 
- * It also allows exporting the Metrics in XML format, together
- * with the PAPI Events. IN this case additional method calls
- * are required to set up the event information.
- * 
- * Automatic Component binding can be established per Event,
- * based on the predefined (or custom) rules.
- * 
- * Additional output handlers are provided by the library or the
- * user may create custom output handlers.
- * 
- * The output method accepts an optional filter object which
- * may create running averages or other aggregate values.
- * 
- * Function signature prototype temaplate:
- * 
- * int SYSSAGE_PAPI_xxx(papi_params, syssage_params)
- */
-
-
 //
 // data collection API
 //
@@ -68,7 +30,7 @@ int SYSSAGE_PAPI_read(int eventSet);
 int SYSSAGE_PAPI_stop(int eventSet);
 
 /// destroy PAPI eventset with PAPI_destroy and frees counter storage
-int SYSSAGE_PAPI_destroy(int eventSet);
+int SYSSAGE_PAPI_destroy_eventset(int* eventSet);
 
 //
 // data collection API
@@ -118,13 +80,12 @@ struct SYSSAGE_PAPI_DataTable {
     std::vector<std::vector<T>> rows;
 };
 
-template<typename T>
 struct SYSSAGE_PAPI_Freezer : public SYSSAGE_PAPI_Visitor {
-    virtual SYSSAGE_PAPI_DataTable<T>& frozen() = 0;
+    virtual SYSSAGE_PAPI_DataTable<std::string>& frozen() = 0;
     virtual void defrost() = 0;
 };
 
-int SYSSAGE_PAPI_freeze(Component* topology, SYSSAGE_PAPI_Freezer<std::string>& freezer);
+int SYSSAGE_PAPI_freeze(Component* topology, SYSSAGE_PAPI_Freezer& freezer);
 int SYSSAGE_PAPI_freeze(Component* topology);
 
 int SYSSAGE_PAPI_cleanup(Component* topology);

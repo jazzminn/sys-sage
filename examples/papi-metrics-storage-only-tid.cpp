@@ -3,8 +3,11 @@
 #include <unistd.h>
 #include <tuple>
 #include <thread>
+#include <sstream>
 
 #include "sys-sage.hpp"
+#include "papi/Statistics.hpp"
+#include "papi/Utility.hpp"
 
 #include <papi.h>
 #include <errno.h>
@@ -19,7 +22,7 @@ static const int papi_component = 0;
 
 /// @brief Simple load to be analyzed
 /// @param cores number of threads to start
-static long loop_size = 10000000;
+static long loop_size = 100000000;
 
 void prevent_optimization( void *array ) {
 	( void ) array;
@@ -157,23 +160,21 @@ struct Materializer : public SYSSAGE_PAPI_Visitor {
     }
 };
 
-struct Histogram : public SYSSAGE_PAPI_Visitor {
+struct Diff : public SYSSAGE_PAPI_Visitor {
     SYSSAGE_PAPI_DataTable<long long> table;
     std::vector<long long> values;
 
     bool data(int sid, long long sts, long long ts, int core, const std::vector<long long>& counters) {
         auto elapsed = ts - sts;
-        if ( elapsed > 0 ) {
-            std::vector<long long> columns;
-            columns.push_back((double)elapsed);
-            int idx = 0;
-            for(auto& c: counters) {
-                columns.push_back(c-values[idx]);
-                values[idx] = c;
-                idx++;
-            }
-            table.rows.emplace_back(columns);
+        std::vector<long long> columns;
+        columns.push_back((double)elapsed);
+        int idx = 0;
+        for(auto& c: counters) {
+            columns.push_back(c-values[idx]);
+            values[idx] = c;
+            idx++;
         }
+        table.rows.emplace_back(columns);
         return true;
     }
 
@@ -185,6 +186,52 @@ struct Histogram : public SYSSAGE_PAPI_Visitor {
         values.resize(eventNames.size() + 1);
     }
 };
+
+struct Columnizer : public SYSSAGE_PAPI_Visitor {
+    SYSSAGE_PAPI_DataTable<long long> table;
+    std::vector<std::string> names;
+    std::vector<std::vector<long long>> columns;
+
+    bool data(int sid, long long sts, long long ts, int core, const std::vector<long long>& counters) {
+        int idx = 0;
+        for(auto& c: counters) {
+            columns[idx++].push_back(c);
+        }
+        return true;
+    }
+
+    void info(int eventSet, int core, unsigned long tid, const std::vector<std::string>& eventNames) {
+        for(auto& e: eventNames) {
+            names.push_back(e);
+        }
+        columns.resize(eventNames.size());
+    }
+};
+
+struct ColumnizerWithTimestamp : public SYSSAGE_PAPI_Visitor {
+    SYSSAGE_PAPI_DataTable<long long> table;
+    std::vector<std::string> names;
+    std::vector<std::vector<long long>> columns;
+
+    bool data(int sid, long long sts, long long ts, int core, const std::vector<long long>& counters) {
+        int idx = 0;
+        columns[idx++].push_back(ts-sts);
+        for(auto& c: counters) {
+            columns[idx++].push_back(c);
+        }
+        return true;
+    }
+
+    void info(int eventSet, int core, unsigned long tid, const std::vector<std::string>& eventNames) {
+        names.push_back("Timestamp");
+        for(auto& e: eventNames) {
+            names.push_back(e);
+        }
+        columns.resize(eventNames.size() + 1);
+    }
+};
+
+
 
 template<typename T>
 void print(const SYSSAGE_PAPI_DataTable<T>& table, int column_width = 16) {
@@ -303,22 +350,48 @@ int main(int argc, char *argv[])
         Filter filteredMaterializer{materializer};
         SYSSAGE_PAPI_visit(eventSet, filteredMaterializer);
 
-        Histogram historgram;
-        Filter filteredHistogram{historgram};
-        SYSSAGE_PAPI_visit(eventSet, filteredHistogram);
+        Diff diff;
+        SYSSAGE_PAPI_visit(eventSet, diff);
 
         Speed speedCalculator;
         SYSSAGE_PAPI_visit(eventSet, speedCalculator);
 
-        SYSSAGE_PAPI_destroy(eventSet);
+        Columnizer columnizer;
+        SYSSAGE_PAPI_visit(eventSet, columnizer);
 
-        std::cout << "------------------------------------" << std::endl;
+        ColumnizerWithTimestamp columnizer2;
+        SYSSAGE_PAPI_visit(eventSet, columnizer2);
+
+        papi::StatisticsHandler stats;
+        SYSSAGE_PAPI_visit(eventSet, stats);
+
+        SYSSAGE_PAPI_destroy_eventset(&eventSet);
+
+        std::cout << "-Growth speed-----------------------------------" << std::endl;
         print(speed.table);
-        std::cout << "------------------------------------" << std::endl;
+        std::cout << "-Normalized-----------------------------------" << std::endl;
         print(materializer.table);
-        std::cout << "------------------------------------" << std::endl;
-        print(historgram.table);
+        std::cout << "-Growth-----------------------------------" << std::endl;
+        print(diff.table);
 
+        std::cout << "-Statstics-----------------------------------" << std::endl;
+        for(size_t i=0; i<columnizer.names.size(); ++i) {
+            auto stats = papi::Statistics<long long>::calculate(papi::Statistics<long long>::diff(columnizer.columns[i]));
+            std::cout << columnizer.names[i] << ": ";
+            stats.print(std::cout);
+            std::cout << std::endl;
+        }
+
+        std::cout << "-Statstics-2---------------------------------" << std::endl;
+        for(size_t i=0; i<columnizer2.names.size(); ++i) {
+            auto stats = papi::Statistics<long long>::calculate(papi::Statistics<long long>::diff(columnizer2.columns[i]));
+            std::cout << columnizer2.names[i] << ": ";
+            stats.print(std::cout);
+            std::cout << std::endl;
+        }
+
+        std::cout << "-Statstics-3---------------------------------" << std::endl;
+        print(stats.frozen(), 20);
     }
     return EXIT_SUCCESS;
 }

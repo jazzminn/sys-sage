@@ -1,6 +1,8 @@
 #include "papi/Metrics.hpp"
 #include "papi/Logging.hpp"
 #include "papi/SystemInfo.hpp"
+#include "papi/Utility.hpp"
+
 #include "xml_dump.hpp"
 
 #include <papi.h>
@@ -425,77 +427,6 @@ struct PapiMetricsTable {
     }
 };
 
-struct DefaultFreezer: public SYSSAGE_PAPI_Freezer<std::string> {
-    SYSSAGE_PAPI_DataTable<std::string> table;
-
-    SYSSAGE_PAPI_DataTable<std::string>& frozen() {
-        return table;
-    }
-
-    void defrost() {
-        table.headers.clear();
-        table.rows.clear();
-    }
-
-    bool data(int sid, long long sts, long long ts, int core, const std::vector<long long>& counters) {
-        auto elapsed = ts - sts;
-        if ( elapsed > 0 ) {
-            std::vector<std::string> columns;
-            columns.push_back(std::to_string(elapsed));
-            for(auto& c: counters) {
-                columns.push_back(std::to_string(c));
-            }
-            table.rows.emplace_back(columns);
-        }
-        return true;
-    }
-
-    void info(int eventSet, int core, unsigned long tid, const std::vector<std::string>& eventNames) {
-        table.headers.push_back("time (us)");
-        for(auto& e: eventNames) {
-            table.headers.push_back(e);
-        }
-    }
-};
-
-struct Printer : public SYSSAGE_PAPI_Visitor {
-    int column_width = 16;
-    int session_id = -1;
-
-    Printer(int width = 16) : column_width{width} {}
-
-    bool data(int sid, long long sts, long long ts, int core, const std::vector<long long>& counters) {
-        if ( sid != session_id ) {
-            std::cout << "Session " << sid << " start timestamp: " << sts << std::endl;
-            session_id = sid;
-        }
-        std::cout 
-            << std::setw(column_width) << ts
-            << std::setw(column_width) << core;
-        for(auto& c: counters) {
-            std::cout << std::setw(column_width) << c;
-        }
-        std::cout << std::endl;
-        return true;
-    }
-
-    void info(int eventSet, int core, unsigned long tid, const std::vector<std::string>& eventNames) {
-        std::cout << "EventSet: " << eventSet << std::endl;
-        if ( tid > 0 ) {
-            std::cout << "Attached TID: " << tid << std::endl;
-        }
-        if ( core > -1 ) {
-            std::cout << "Attached CPU: " << core << std::endl;
-        }
-        std::cout 
-            << std::setw(column_width) << "timestamp"
-            << std::setw(column_width) << "core";
-        for(auto& e: eventNames) {
-            std::cout << std::setw(column_width) << e;
-        }
-        std::cout << std::endl;
-    }
-};
 
 static StorageManager storageManager;
 
@@ -519,12 +450,15 @@ int SYSSAGE_PAPI_stop(int eventSet) {
 }
 
 /// destroy PAPI eventset with PAPI_destroy and frees counter storage
-int SYSSAGE_PAPI_destroy(int eventSet) {
-    return storageManager.destroy(eventSet);
+int SYSSAGE_PAPI_destroy_eventset(int* eventSet) {
+    if ( eventSet == nullptr ) return PAPI_EINVAL;
+    int rv = storageManager.destroy(*eventSet);
+    *eventSet = PAPI_NULL;
+    return rv;
 }
 
 int SYSSAGE_PAPI_print(int eventSet) {
-    Printer printer;
+    papi::Printer printer;
     return storageManager.data(eventSet, printer);
 }
 
@@ -838,7 +772,7 @@ int SYSSAGE_PAPI_export_xml(Component* topology, const std::string& path) {
     return exportToXml(topology, path, PAPI_attribHandler, PAPI_attribXmlHandler);
 }
 
-int SYSSAGE_PAPI_freeze(Component* component, SYSSAGE_PAPI_Freezer<std::string>& freezer) {
+int SYSSAGE_PAPI_freeze(Component* component, SYSSAGE_PAPI_Freezer& freezer) {
     for(Component* child: *component->GetChildren()) {
         if ( PapiMetricsAttrib::existsMetricsAttrib(child) ) {
             logprintf("Component has metricsattrib");
@@ -860,7 +794,7 @@ int SYSSAGE_PAPI_freeze(Component* component, SYSSAGE_PAPI_Freezer<std::string>&
 }
 
 int SYSSAGE_PAPI_freeze(Component* component) {
-    DefaultFreezer freezer;
+    papi::DefaultFreezer freezer;
     return SYSSAGE_PAPI_freeze(component, freezer);
 }
 

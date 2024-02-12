@@ -4,7 +4,8 @@
 #include <sstream>
 
 #include <papi.h>
-#include <sys-sage.hpp>
+#include "sys-sage.hpp"
+#include "papi/Statistics.hpp"
 
 static std::vector<std::string> papi_events = {
     "PAPI_TOT_INS",
@@ -108,9 +109,9 @@ void test_papi() {
     std::cout << " - Event count: " << event_count << std::endl;
     std::cout << " - Timer overhead: " << overhead << " ns" << std::endl;
 
-    uint64_t start_time = 0;
-    uint64_t read_time = 0;
-    uint64_t stop_time = 0;
+    std::vector<uint64_t> start_time;
+    std::vector<uint64_t> read_time;
+    std::vector<uint64_t> stop_time;
     for(uint64_t i=0; i<test_count; i++) {
         int rv;
         auto duration = benchmark_papi("PAPI_start", [&]() {
@@ -120,8 +121,7 @@ void test_papi() {
             std::cerr << "Failed to start eventset: " << rv << std::endl;
             exit(EXIT_FAILURE);
         }
-        start_time += duration-overhead;
-        //std::cout << "Start: " << (duration - overhead) << " ns" << std::endl;
+        start_time.push_back(duration-overhead);
 
         duration = benchmark_papi("PAPI_read", [&]() {
             long long values[event_count];
@@ -131,8 +131,7 @@ void test_papi() {
             std::cerr << "Failed to start eventset: " << rv << std::endl;
             exit(EXIT_FAILURE);
         }
-        read_time += duration-overhead;
-
+        read_time.push_back(duration-overhead);
 
         duration = benchmark_papi("PAPI_stop", [&]() {
             long long * values = new long long[event_count];
@@ -143,13 +142,15 @@ void test_papi() {
             std::cerr << "Failed to start eventset: " << rv << std::endl;
             exit(EXIT_FAILURE);
         }
-        stop_time += duration-overhead;
-        //std::cout << "Stop: " << (duration - overhead) << " ns" << std::endl;
+        stop_time.push_back(duration-overhead);
     }
 
-    std::cout << "Start: " << start_time/test_count << " ns" << std::endl;
-    std::cout << "Read: " << read_time/test_count << " ns" << std::endl;
-    std::cout << "Stop: " << stop_time/test_count << " ns" << std::endl;
+    std::cout << "Start: ";
+    papi::Statistics<uint64_t>::calculate(start_time).print();
+    std::cout << "Read: ";
+    papi::Statistics<uint64_t>::calculate(read_time).print();
+    std::cout << "Stop: ";
+    papi::Statistics<uint64_t>::calculate(stop_time).print();
 
     PAPI_destroy_eventset(&eventSet);
 }
@@ -163,9 +164,9 @@ void test_syssage_papi() {
     std::cout << " - Event count: " << event_count << std::endl;
     std::cout << " - Timer overhead: " << overhead << " ns" << std::endl;
 
-    uint64_t start_time = 0;
-    uint64_t read_time = 0;
-    uint64_t stop_time = 0;
+    std::vector<uint64_t> start_time;
+    std::vector<uint64_t> read_time;
+    std::vector<uint64_t> stop_time;
     for(uint64_t i=0; i<test_count; i++) {
         int rv;
         auto duration = benchmark_papi("PAPI_start", [&]() {
@@ -175,8 +176,7 @@ void test_syssage_papi() {
             std::cerr << "Failed to start eventset: " << rv << std::endl;
             exit(EXIT_FAILURE);
         }
-        start_time += duration-overhead;
-        //std::cout << "Start: " << (duration - overhead) << " ns" << std::endl;
+        start_time.push_back(duration-overhead);
 
         duration = benchmark_papi("PAPI_read", [&]() {
             rv = SYSSAGE_PAPI_read(eventSet);
@@ -185,8 +185,7 @@ void test_syssage_papi() {
             std::cerr << "Failed to start eventset: " << rv << std::endl;
             exit(EXIT_FAILURE);
         }
-        read_time += duration-overhead;
-
+        read_time.push_back(duration-overhead);
 
         duration = benchmark_papi("PAPI_stop", [&]() {
             rv = SYSSAGE_PAPI_stop(eventSet);
@@ -195,15 +194,17 @@ void test_syssage_papi() {
             std::cerr << "Failed to start eventset: " << rv << std::endl;
             exit(EXIT_FAILURE);
         }
-        stop_time += duration-overhead;
-        //std::cout << "Stop: " << (duration - overhead) << " ns" << std::endl;
+        stop_time.push_back(duration-overhead);
     }
 
-    std::cout << "Start: " << start_time/test_count << " ns" << std::endl;
-    std::cout << "Read: " << read_time/test_count << " ns" << std::endl;
-    std::cout << "Stop: " << stop_time/test_count << " ns" << std::endl;
+    std::cout << "Start: ";
+    papi::Statistics<uint64_t>::calculate(start_time).print();
+    std::cout << "Read: ";
+    papi::Statistics<uint64_t>::calculate(read_time).print();
+    std::cout << "Stop: ";
+    papi::Statistics<uint64_t>::calculate(stop_time).print();
 
-    SYSSAGE_PAPI_destroy(eventSet);
+    SYSSAGE_PAPI_destroy_eventset(&eventSet);
 }
 
 int main(int argc, char *argv[]) {
@@ -211,13 +212,13 @@ int main(int argc, char *argv[]) {
     std::cout << "SYS-SAGE PAPI benchmarks." << std::endl;
 
     if ( argc > 1 ) {
-        std::stringstream ss{argv[1]};
-        ss >> event_count;
+        std::stringstream sstream{argv[1]};
+        sstream >> event_count;
         if ( event_count > papi_events.size() ) event_count = papi_events.size();
     }
     if ( argc > 2 ) {
-        std::stringstream ss{argv[2]};
-        ss >> test_count;
+        std::stringstream sstream{argv[2]};
+        sstream >> test_count;
     }
     
     int rv = PAPI_library_init(PAPI_VER_CURRENT);

@@ -38,8 +38,8 @@ struct GreenScore : public SYSSAGE_PAPI_Visitor {
         int hwThread;
         double frequency;
         std::vector<long long> papi_counters;
-        Entry(uint64_t t, int h, double f, std::vector<long long> c)
-            : time{t}, hwThread{h}, frequency{f}, papi_counters{c} {}
+        Entry(uint64_t t, int hwt, double f, const std::vector<long long>& c)
+            : time{t}, hwThread{hwt}, frequency{f}, papi_counters{c} {}
 
         void Print()
         {
@@ -88,7 +88,6 @@ struct GreenScore : public SYSSAGE_PAPI_Visitor {
     void info(int eventSet, int core, unsigned long tid, const std::vector<std::string>& eventNames) {        
     }
 };
-
 
 void usage(char* argv0) {
     std::cerr << "usage: " << argv0 << " <hwloc xml path> <program_to_measure> [program params]" << std::endl;
@@ -226,7 +225,7 @@ int main(int argc, char *argv[])
                 greenScore.use(time, component);
                 rv = SYSSAGE_PAPI_visit(eventSets[i], greenScore);
 
-                SYSSAGE_PAPI_destroy(eventSets[i]);
+                SYSSAGE_PAPI_destroy_eventset(&eventSets[i]);
             }
 
             finished_pid = waitpid(child, &process_status, WNOHANG);
