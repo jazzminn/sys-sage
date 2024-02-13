@@ -290,12 +290,13 @@ public:
 
         //FIXME: the eventset cannot be modified once started -> check!
         auto& info = eventSetStorage[eventSet].eventSetInfo;
+#ifdef STORE_CHECK_NEEDED
         auto check = EventSetInfo::createEventSetInfo(eventSet);
         if ( info != check.second ) {
             logprintf("EventSet has been changed, ignoring new counters");
             return SYSSAGE_PAPI_ECHANGED;
         }
-
+#endif
         int num_counters = info.events.size();
         std::vector<long long> counters(num_counters, 0);
         rv = papi_fn(eventSet, counters.data());
