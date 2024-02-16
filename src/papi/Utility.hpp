@@ -1,132 +1,59 @@
 #pragma once
 
 #include "papi/Metrics.hpp"
-#include "papi/Statistics.hpp"
+#include <iostream>
 #include <iomanip>
 
 namespace papi {
+    /// @brief Default freezer handler. Converts values to a simple string table
+    class DefaultFreezer: public SYSSAGE_PAPI_Freezer {
+        SYSSAGE_PAPI_DataTable<std::string> table;
+    public:
+        SYSSAGE_PAPI_DataTable<std::string>& frozen();
+        void defrost();
 
-struct DefaultFreezer: public SYSSAGE_PAPI_Freezer {
-    SYSSAGE_PAPI_DataTable<std::string> table;
+        bool data(int sid, long long sts, long long ts, int core, const std::vector<long long>& counters);
+        void info(int eventSet, int core, unsigned long tid, const std::vector<std::string>& eventNames);
+    };
 
-    SYSSAGE_PAPI_DataTable<std::string>& frozen() {
-        return table;
-    }
+    /// @brief Prints eventSet measurements to STDOUT
+    class Printer : public SYSSAGE_PAPI_Visitor {
+        int column_width = 16;
+        int session_id = -1;
+    public:
+        Printer(int width = 16);
 
-    void defrost() {
-        table.headers.clear();
-        table.rows.clear();
-    }
+        bool data(int sid, long long sts, long long ts, int core, const std::vector<long long>& counters);
+        void info(int eventSet, int core, unsigned long tid, const std::vector<std::string>& eventNames);
 
-    bool data(int sid, long long sts, long long ts, int core, const std::vector<long long>& counters) {
-        auto elapsed = ts - sts;
-        if ( elapsed > 0 ) {
-            std::vector<std::string> columns;
-            columns.push_back(std::to_string(elapsed));
-            for(auto& c: counters) {
-                columns.push_back(std::to_string(c));
+        template<typename T>
+        static void print(const SYSSAGE_PAPI_DataTable<T>& table, std::ostream& os = std::cout, int column_width = 16);
+    };
+
+    /// @brief Calculates statistics of measured values
+    class StatisticsHandler : public SYSSAGE_PAPI_Freezer {
+        SYSSAGE_PAPI_DataTable<std::string> table;
+        std::vector<std::string> names;
+        std::vector<std::vector<long long>> columns;
+    public:
+        SYSSAGE_PAPI_DataTable<std::string>& frozen();
+        void defrost();
+
+        bool data(int sid, long long sts, long long ts, int core, const std::vector<long long>& counters);
+        void info(int eventSet, int core, unsigned long tid, const std::vector<std::string>& eventNames);   
+    };
+    template<typename T>
+    void Printer::print(const SYSSAGE_PAPI_DataTable<T>& table, std::ostream& os, int column_width) {
+        for(auto& h: table.headers) {
+            os << std::setw(column_width) << h;
+        }
+        std::cout << std::endl;
+        for(auto& row: table.rows) {
+            for(auto v: row) {
+                os << std::setw(column_width) << v;
             }
-            table.rows.emplace_back(columns);
-        }
-        return true;
-    }
-
-    void info(int eventSet, int core, unsigned long tid, const std::vector<std::string>& eventNames) {
-        table.headers.push_back("time (us)");
-        for(auto& e: eventNames) {
-            table.headers.push_back(e);
+            os << std::endl;
         }
     }
-};
-
-struct Printer : public SYSSAGE_PAPI_Visitor {
-    int column_width = 16;
-    int session_id = -1;
-
-    Printer(int width = 16) : column_width{width} {}
-
-    bool data(int sid, long long sts, long long ts, int core, const std::vector<long long>& counters) {
-        if ( sid != session_id ) {
-            std::cout << "Session " << sid << " start timestamp: " << sts << std::endl;
-            session_id = sid;
-        }
-        std::cout 
-            << std::setw(column_width) << ts
-            << std::setw(column_width) << core;
-        for(auto& c: counters) {
-            std::cout << std::setw(column_width) << c;
-        }
-        std::cout << std::endl;
-        return true;
-    }
-
-    void info(int eventSet, int core, unsigned long tid, const std::vector<std::string>& eventNames) {
-        std::cout << "EventSet: " << eventSet << std::endl;
-        if ( tid > 0 ) {
-            std::cout << "Attached TID: " << tid << std::endl;
-        }
-        if ( core > -1 ) {
-            std::cout << "Attached CPU: " << core << std::endl;
-        }
-        std::cout 
-            << std::setw(column_width) << "timestamp"
-            << std::setw(column_width) << "core";
-        for(auto& e: eventNames) {
-            std::cout << std::setw(column_width) << e;
-        }
-        std::cout << std::endl;
-    }
-};
-
-struct StatisticsHandler : public SYSSAGE_PAPI_Freezer {
-    SYSSAGE_PAPI_DataTable<std::string>& frozen() {
-        if ( !table.headers.empty() ) return table;
-        // build statistics table
-        auto size = names.size();
-        table.headers.push_back("Event");
-        table.headers.push_back("Min");
-        table.headers.push_back("Max");
-        table.headers.push_back("Mean");
-        table.headers.push_back("Median");
-        for(size_t i=0; i<size; ++i) {
-            auto stats = papi::Statistics<long long>::calculate(papi::Statistics<long long>::diff(columns[i]));
-            std::vector<std::string> row;
-            row.push_back(names[i]);
-            row.push_back(std::to_string(stats.min));
-            row.push_back(std::to_string(stats.max));
-            row.push_back(std::to_string(stats.average));
-            row.push_back(std::to_string(stats.median));
-            table.rows.emplace_back(row);
-        }
-        return table;
-    }
-
-    void defrost() {
-        table.headers.clear();
-        table.rows.clear();
-    }
-
-    bool data(int sid, long long sts, long long ts, int core, const std::vector<long long>& counters) {
-        int idx = 0;
-        columns[idx++].push_back(ts-sts);
-        for(auto& c: counters) {
-            columns[idx++].push_back(c);
-        }
-        return true;
-    }
-
-    void info(int eventSet, int core, unsigned long tid, const std::vector<std::string>& eventNames) {
-        names.push_back("Timestamp");
-        for(auto& e: eventNames) {
-            names.push_back(e);
-        }
-        columns.resize(eventNames.size() + 1);
-    }
-    
-private:
-    SYSSAGE_PAPI_DataTable<std::string> table;
-    std::vector<std::string> names;
-    std::vector<std::vector<long long>> columns;
-};
 
 }

@@ -3,13 +3,14 @@
 //
 // Logging
 //
-#ifdef _DEBUG
+#ifndef NDEBUG
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
 
+using namespace papi;
 
-void _logprintf(const char* file, int line, const char* function, const char* format, ...) {
+void Logger::printf(const char* file, int line, const char* function, const char* format, ...) {
     va_list arg;
     va_start(arg, format);
     auto fileName = strrchr(file, '/') + 1;

@@ -5,6 +5,7 @@
 #include <thread>
 
 #include "sys-sage.hpp"
+#include "papi/Binding.hpp"
 
 #include <papi.h>
 #include <sched.h>
@@ -141,7 +142,8 @@ int main(int argc, char *argv[])
 
     make_load();
 
-    rv = SYSSAGE_PAPI_stop(eventSet, topo, nullptr);
+    Component* boundComponent;
+    rv = SYSSAGE_PAPI_stop(eventSet, topo, &boundComponent);
     if ( rv != PAPI_OK ) {
         std::cerr << "Failed to stop and store eventset: " << rv << std::endl;
         exit(EXIT_FAILURE);
@@ -151,10 +153,13 @@ int main(int argc, char *argv[])
     SYSSAGE_PAPI_export_xml(topo, output_name1);
 
     SYSSAGE_PAPI_freeze(topo);
-
-    SYSSAGE_PAPI_export_xml(topo, output_name2);
+    
     SYSSAGE_PAPI_destroy_eventset(&eventSet);
     
+    // Note, it is now possible to export XML after SYSSAGE_PAPI_destroy_eventset
+    // because SYSSAGE_PAPI_freeze has saved the metrics data table
+    SYSSAGE_PAPI_export_xml(topo, output_name2);
+
     SYSSAGE_PAPI_cleanup(topo);
 
     return EXIT_SUCCESS;

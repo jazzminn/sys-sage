@@ -14,7 +14,7 @@ static constexpr auto MaxStatFileSize = 1024; // ~ 255 + (FieldTaskCpu-2) * 22;
 
 // gets the nth field as integer from a /proc/#/stat style string
 // the field counting starts at 1!
-int SystemInfo::getField(const std::string& fields, int field) {
+static int getField(const std::string& fields, int field) {
     int value = -1;
     auto pos = fields.find_last_of(')');
     if ( pos != std::string::npos ) {
